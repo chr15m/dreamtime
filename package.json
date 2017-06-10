@@ -1,6 +1,6 @@
 {
   "name": "dreamtime",
-  "version": "0.1",
+  "version": "0.1.0",
   "dependencies": {
     "readline": "^1.3.0",
     "ripemd160": "^2.0.1",
