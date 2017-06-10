@@ -6,5 +6,6 @@
     "ripemd160": "^2.0.1",
     "tweetnacl": "^1.0.0",
     "webtorrent": "^0.81.0"
-  }
+  },
+  "bin": "./index.js"
 }
