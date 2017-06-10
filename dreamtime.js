@@ -4,8 +4,9 @@ var EXT = "dt_share";
 
 var WebTorrent = require('webtorrent');
 var readline = require('readline');
-var uuid = require('uuid');
 var bencode = require('bencode');
+var nacl = require('tweetnacl');
+var ripe = require('ripemd160');
 
 var client = new WebTorrent();
 var rl = readline.createInterface({
@@ -13,7 +14,10 @@ var rl = readline.createInterface({
   terminal: false,
 });
 
-console.log("id", client.peerId);
+var keys = nacl.sign.keyPair();
+var pk = Buffer(keys.publicKey).toString('hex');
+
+console.log("me\t", fingerprint(pk));
 
 var id = process.argv.pop();
 var content = new Buffer(id);
@@ -21,68 +25,71 @@ content.name = id;
 
 wires = [];
 
+function fingerprint(m) {
+  return new ripe().update(Buffer(m)).digest('hex');
+}
+
 function post(payload) {
-  var packet = {u: uuid(), p: payload.toString()};
+  var packet = {k: Buffer(keys.publicKey), u: Buffer(nacl.randomBytes(20)), p: Buffer(payload.toString())};
+  packet.s = Buffer(nacl.sign.detached(Buffer(packet.k + packet.u + packet.p), keys.secretKey));
   wires.map(function(wire) {
     wire.extended(EXT, packet);
   });
 }
 
 rl.on('line', function(line) {
-  //console.log("LINE!", line);
+  //console.log("line", line);
   post(line);
 });
 
 rl.on('close', function() {
-  console.log("exit");
+  console.log("exiting");
   process.exit(0);
 });
 
 function make_protocol(wire, addr) {
   var t = function(wire) {
-    // TODO: change/remove this
-    //wire.extendedHandshake.test = 'Hello, World!'
+    wire.extendedHandshake.pk = pk;
   };
   t.prototype.name = EXT;
-  t.prototype.onHandshake = function (infoHash, peerId, extensions) {
-    //console.log("t.onHandshake", infoHash, peerId);
-    //console.log("t.onHandshake extensions", extensions);
-  }
   t.prototype.onExtendedHandshake = function (handshake) {
     //console.log("t.onExtendedHandshake", handshake);
     if (handshake.m && handshake.m[EXT]) {
-      console.log("peer", wire.peerId);
+      wire.fingerprint = fingerprint(handshake.pk);
       wires.push(wire);
+      console.log("peer\t", wire.fingerprint);
     }
   }
   t.prototype.onMessage = function(message) {
-    var packet = bencode.decode(message);
-    console.log(wire.peerId, packet["p"].toString());
+    if (wire.fingerprint) {
+      var packet = bencode.decode(message);
+      var verified = nacl.sign.detached.verify(Buffer(packet.k + packet.u + packet.p), new Uint8Array(packet.s), new Uint8Array(packet.k));
+      //console.log(packet);
+      //console.log(verified);
+      if (verified) {
+        console.log("msg\t", wire.fingerprint, packet["p"].toString());
+      }
+    }
   }
   return t;
 }
 
-//client.on('ready', function() {
-//  console.log("ready", arguments);
-//});
-
 client.on('torrent', function(torrent) { 
-  console.log("torrentHash", torrent.infoHash);
+  console.log("hash\t", torrent.infoHash);
 });
 
 var torrent = client.seed(content, function (torrent) {
-  console.log('live', torrent.infoHash)
+  console.log('live')
 });
 
 torrent.on("wire", function(wire, addr) {
-  console.log("wire", wire.peerId, addr);
+  //console.log("wire", wire.peerId, addr);
   wire.use(make_protocol(wire, addr));
-  wire.on("handshake", function() {
-    //console.log("Handshake wire", arguments);
-  });
   wire.on("close", function() {
-    console.log("close", wire.peerId);
-    wires.filter(function(w) { return w != wire; });
+    wires = wires.filter(function(w) { return w != wire; });
+    if (wire.fingerprint) {
+      console.log("left\t", wire.fingerprint);
+    }
   });
 });
 
