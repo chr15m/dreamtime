@@ -8,6 +8,11 @@ var bencode = require('bencode');
 var nacl = require('tweetnacl');
 var ripe = require('ripemd160');
 
+var wires = [];
+var seen = [];
+seen.length = 1024;
+var seenptr = 0;
+
 var client = new WebTorrent();
 var rl = readline.createInterface({
   input: process.stdin,
@@ -23,8 +28,6 @@ var id = process.argv.pop();
 var content = new Buffer(id);
 content.name = id;
 
-wires = [];
-
 function fingerprint(m) {
   return new ripe().update(Buffer(m)).digest('hex');
 }
@@ -35,6 +38,11 @@ function post(payload) {
   wires.map(function(wire) {
     wire.extended(EXT, packet);
   });
+}
+
+function seen_add(v) {
+  seen[seenptr] = v;
+  seenptr = (seenptr + 1) % seen.length;
 }
 
 rl.on('line', function(line) {
@@ -67,7 +75,19 @@ function make_protocol(wire, addr) {
       //console.log(packet);
       //console.log(verified);
       if (verified) {
-        console.log("msg\t", wire.fingerprint, packet["p"].toString());
+        var uid = packet.k + packet.u;
+        if (seen.indexOf(uid) == -1) {
+          // this is not a repeat packet
+          console.log("msg\t", fingerprint(packet.k), packet["p"].toString());
+          seen_add(uid);
+          wires.map(function(w) {
+            if (w != wire) {
+              w.extended(EXT, packet);
+            }
+          });
+        } else {
+          //console.log("repeat", uid);
+        }
       }
     }
   }
