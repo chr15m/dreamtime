@@ -15,7 +15,7 @@ var rl = readline.createInterface({
 });
 
 var keys = nacl.sign.keyPair();
-var pk = Buffer(keys.publicKey).toString('hex');
+var pk = Buffer(keys.publicKey);
 
 console.log("me\t", fingerprint(pk));
 
