@@ -36,9 +36,32 @@ function fingerprint(m) {
 function post(payload) {
   var packet = {k: Buffer(keys.publicKey), u: Buffer(nacl.randomBytes(20)), p: Buffer(payload.toString())};
   packet.s = Buffer(nacl.sign.detached(Buffer(packet.k + packet.u + packet.p), keys.secretKey));
-  wires.map(function(wire) {
-    wire.extended(EXT, packet);
-  });
+  //wires.map(function(wire) {
+  //  wire.extended(EXT, packet);
+  //});
+  return packet;
+}
+
+function receive(packet, wire) {
+  var verified = nacl.sign.detached.verify(Buffer(packet.k + packet.u + packet.p), new Uint8Array(packet.s), new Uint8Array(packet.k));
+  debug("verified:", verified);
+  debug("packet:", packet);
+  if (verified) {
+    var uid = packet.k + packet.u;
+    if (seen.indexOf(uid) == -1) {
+      // this is not a repeat packet
+      console.log("msg\t", fingerprint(packet.k), packet["p"].toString());
+      seen_add(uid);
+      wires.map(function(w) {
+        if (w != wire) {
+          w.extended(EXT, packet);
+        }
+      });
+    } else {
+      //console.log("repeat", uid);
+      debug("ignoring repeat packet");
+    }
+  }
 }
 
 function seen_add(v) {
@@ -48,7 +71,7 @@ function seen_add(v) {
 
 rl.on('line', function(line) {
   //console.log("line", line);
-  post(line);
+  receive(post(line), null);
 });
 
 rl.on('close', function() {
@@ -75,25 +98,7 @@ function make_protocol(wire, addr) {
     debug("wire:", wire.fingerprint);
     if (wire.fingerprint) {
       var packet = bencode.decode(message);
-      var verified = nacl.sign.detached.verify(Buffer(packet.k + packet.u + packet.p), new Uint8Array(packet.s), new Uint8Array(packet.k));
-      debug("verified:", verified);
-      debug("packet:", packet);
-      if (verified) {
-        var uid = packet.k + packet.u;
-        if (seen.indexOf(uid) == -1) {
-          // this is not a repeat packet
-          console.log("msg\t", fingerprint(packet.k), packet["p"].toString());
-          seen_add(uid);
-          wires.map(function(w) {
-            if (w != wire) {
-              w.extended(EXT, packet);
-            }
-          });
-        } else {
-          //console.log("repeat", uid);
-          debug("ignoring repeat packet");
-        }
-      }
+      receive(packet, wire);
     }
   }
   return t;
