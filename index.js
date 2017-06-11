@@ -7,6 +7,7 @@ var readline = require('readline');
 var bencode = require('bencode');
 var nacl = require('tweetnacl');
 var ripe = require('ripemd160');
+var debug = require('debug')('dreamtime')
 
 var wires = [];
 var seen = [];
@@ -66,14 +67,17 @@ function make_protocol(wire, addr) {
       wire.fingerprint = fingerprint(handshake.pk);
       wires.push(wire);
       console.log("peer\t", wire.fingerprint);
+      debug("wires:", wires.length);
     }
   }
   t.prototype.onMessage = function(message) {
+    debug("raw:", message);
+    debug("wire:", wire.fingerprint);
     if (wire.fingerprint) {
       var packet = bencode.decode(message);
       var verified = nacl.sign.detached.verify(Buffer(packet.k + packet.u + packet.p), new Uint8Array(packet.s), new Uint8Array(packet.k));
-      //console.log(packet);
-      //console.log(verified);
+      debug("verified:", verified);
+      debug("packet:", packet);
       if (verified) {
         var uid = packet.k + packet.u;
         if (seen.indexOf(uid) == -1) {
@@ -87,6 +91,7 @@ function make_protocol(wire, addr) {
           });
         } else {
           //console.log("repeat", uid);
+          debug("ignoring repeat packet");
         }
       }
     }
@@ -104,11 +109,13 @@ var torrent = client.seed(content, function (torrent) {
 
 torrent.on("wire", function(wire, addr) {
   //console.log("wire", wire.peerId, addr);
+  debug("saw wire:", wire.peerId);
   wire.use(make_protocol(wire, addr));
   wire.on("close", function() {
     wires = wires.filter(function(w) { return w != wire; });
     if (wire.fingerprint) {
       console.log("left\t", wire.fingerprint);
+      debug("wires:", wires.length);
     }
   });
 });
