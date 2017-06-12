@@ -1,6 +1,8 @@
-Peer-to-peer networking with pipes and shell scripts.
+Peer-to-peer networking for shell scripts & OS pipes.
 
 	npm install chr15m/dreamtime
+
+### Run
 
 	./node_modules/.bin/dreamtime unique-room-identifier
 
