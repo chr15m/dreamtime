@@ -2,13 +2,15 @@ Peer-to-peer networking for shell scripts & OS pipes.
 
 	npm install chr15m/dreamtime
 
+![Screencast of dreamtime connecting to two servers and local](./screencast.gif)
+
 ### Run
 
 	./node_modules/.bin/dreamtime unique-room-identifier
 
-![Screencast of dreamtime connecting to two servers and local](./screencast.gif)
+Example: aggregate the output from `ping` from different servers:
 
-Aggregate the output from scripts on different servers.
+`ping -n wikipedia.org | stdbuf -oL cut -b15- | dreamtime ping-party`
 
 ![Screencast of dreamtime aggregating script output](./screencast-2.gif)
 
