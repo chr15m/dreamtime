@@ -15,34 +15,27 @@ seen.length = 1024;
 var seenptr = 0;
 
 var client = new WebTorrent();
-var rl = readline.createInterface({
-  input: process.stdin,
-  terminal: false,
-});
 
 var keys = nacl.sign.keyPair();
 var pk = Buffer(keys.publicKey);
 
-console.log("me\t", fingerprint(pk));
+console.log("me\t", fingerprint_key(pk));
 
 var id = process.argv.pop();
 var content = new Buffer(id);
 content.name = id;
 
-function fingerprint(m) {
-  return new ripe().update(Buffer(m)).digest('hex');
+function fingerprint_key(pk) {
+  return new ripe().update(Buffer(pk)).digest('hex');
 }
 
-function post(payload) {
+function make_packet(payload) {
   var packet = {k: Buffer(keys.publicKey), u: Buffer(nacl.randomBytes(20)), p: Buffer(payload.toString())};
   packet.s = Buffer(nacl.sign.detached(Buffer(packet.k + packet.u + packet.p), keys.secretKey));
-  //wires.map(function(wire) {
-  //  wire.extended(EXT, packet);
-  //});
   return packet;
 }
 
-function receive(packet, wire) {
+function receive_packet(packet, wire) {
   var verified = nacl.sign.detached.verify(Buffer(packet.k + packet.u + packet.p), new Uint8Array(packet.s), new Uint8Array(packet.k));
   debug("verified:", verified);
   debug("packet:", packet);
@@ -50,7 +43,7 @@ function receive(packet, wire) {
     var uid = packet.k + packet.u;
     if (seen.indexOf(uid) == -1) {
       // this is not a repeat packet
-      console.log("msg\t", fingerprint(packet.k), packet["p"].toString());
+      console.log("msg\t", fingerprint_key(packet.k), packet["p"].toString());
       seen_add(uid);
       wires.map(function(w) {
         if (w != wire) {
@@ -69,9 +62,14 @@ function seen_add(v) {
   seenptr = (seenptr + 1) % seen.length;
 }
 
+var rl = readline.createInterface({
+  input: process.stdin,
+  terminal: false,
+});
+
 rl.on('line', function(line) {
   //console.log("line", line);
-  receive(post(line), null);
+  receive_packet(make_packet(line), null);
 });
 
 rl.on('close', function() {
@@ -79,7 +77,7 @@ rl.on('close', function() {
   process.exit(0);
 });
 
-function make_protocol(wire, addr) {
+function attach_protocol(wire, addr) {
   var t = function(wire) {
     wire.extendedHandshake.pk = pk;
   };
@@ -87,7 +85,7 @@ function make_protocol(wire, addr) {
   t.prototype.onExtendedHandshake = function (handshake) {
     //console.log("t.onExtendedHandshake", handshake);
     if (handshake.m && handshake.m[EXT]) {
-      wire.fingerprint = fingerprint(handshake.pk);
+      wire.fingerprint = fingerprint_key(handshake.pk);
       wires.push(wire);
       console.log("peer\t", wire.fingerprint);
       debug("wires:", wires.length);
@@ -98,7 +96,7 @@ function make_protocol(wire, addr) {
     debug("wire:", wire.fingerprint);
     if (wire.fingerprint) {
       var packet = bencode.decode(message);
-      receive(packet, wire);
+      receive_packet(packet, wire);
     }
   }
   return t;
@@ -115,7 +113,7 @@ var torrent = client.seed(content, function (torrent) {
 torrent.on("wire", function(wire, addr) {
   //console.log("wire", wire.peerId, addr);
   debug("saw wire:", wire.peerId);
-  wire.use(make_protocol(wire, addr));
+  wire.use(attach_protocol(wire, addr));
   wire.on("close", function() {
     wires = wires.filter(function(w) { return w != wire; });
     if (wire.fingerprint) {
