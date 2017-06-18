@@ -14,16 +14,22 @@ function main(args) {
   var name = args.pop();
   var client = make_client();
   console.log("me\t", client.fingerprint);
-  attach_hash_listener(client, name, function() {
-    arguments[0] = arguments[0] + "\t";
-    console.log.apply(console, arguments);
-  });
-  attach_readline_interface(function(line) {
-    var got = process_received_packet(client, make_packet(line, client.keys));
-    if (got) {
-      console.log.apply(console, got);
+  // handle data from peers to stdout
+  attach_hash_listener(client, name, post_to_stdout);
+  // send stdin to peers
+  attach_readline_interface(function(type, data) {
+    if (type == "line") {
+      send(client, data, post_to_stdout);
+    } else if (type == "exit") {
+      console.log("exiting");
     }
   });
+}
+
+function post_to_stdout() {
+  var args = Array.prototype.slice.call(arguments);
+  args[0] = args[0] + "\t";
+  console.log.apply(console, args);
 }
 
 // client datastructure
@@ -78,9 +84,15 @@ function process_received_packet(client, packet, wire) {
       });
       return ["msg", fingerprint_key(packet.k), packet["p"].toString()];
     } else {
-      //console.log("repeat", uid);
       debug("ignoring repeat packet");
     }
+  }
+}
+
+function send(client, message, cb) {
+  var got = process_received_packet(client, make_packet(message, client.keys));
+  if (got) {
+    cb.apply(null, got);
   }
 }
 
@@ -96,7 +108,8 @@ function attach_bittorrent_extension_protocol(client, wire, addr, cb) {
     if (handshake.m && handshake.m[EXT]) {
       wire.fingerprint = fingerprint_key(handshake.pk);
       client.wires.push(wire);
-      console.log("peer\t", wire.fingerprint);
+      //console.log("peer\t", wire.fingerprint);
+      cb("peer", wire);
       debug("wires:", client.wires.length);
     }
   }
@@ -105,7 +118,7 @@ function attach_bittorrent_extension_protocol(client, wire, addr, cb) {
     debug("wire:", wire.fingerprint);
     if (wire.fingerprint) {
       var packet = bencode.decode(message);
-      cb(packet, wire);
+      cb("packet", wire, packet);
     }
   }
   return t;
@@ -125,10 +138,14 @@ function attach_hash_listener(client, name, cb) {
   
   torrent.on("wire", function(wire, addr) {
     debug("saw wire:", wire.peerId);
-    wire.use(attach_bittorrent_extension_protocol(client, wire, addr, function(packet, wire) {
-      var got = process_received_packet(client, packet, wire);
-      if (got) {
-        cb.apply(null, got);
+    wire.use(attach_bittorrent_extension_protocol(client, wire, addr, function(type, wire, packet) {
+      if (type == "packet") {
+        var got = process_received_packet(client, packet, wire);
+        if (got) {
+          cb.apply(null, got);
+        }
+      } else if (type == "peer") {
+        cb(type, wire.fingerprint);
       }
     }));
     wire.on("close", function() {
@@ -152,12 +169,11 @@ function attach_readline_interface(cb) {
   });
 
   rl.on('line', function(line) {
-    //console.log("line", line);
-    cb(line);
+    cb("line", line);
   });
 
   rl.on('close', function() {
-    console.log("exiting");
+    cb("exit");
     process.exit(0);
   });
 }
