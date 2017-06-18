@@ -15,7 +15,7 @@ function main(args) {
   var client = make_client();
   console.log("me\t", client.fingerprint);
   // handle data from peers to stdout
-  attach_hash_listener(client, name, post_to_stdout);
+  listen(client, name, post_to_stdout);
   // send stdin to peers
   attach_readline_interface(function(type, data) {
     if (type == "line") {
@@ -104,11 +104,9 @@ function attach_bittorrent_extension_protocol(client, wire, addr, cb) {
   };
   t.prototype.name = EXT;
   t.prototype.onExtendedHandshake = function (handshake) {
-    //console.log("t.onExtendedHandshake", handshake);
     if (handshake.m && handshake.m[EXT]) {
       wire.fingerprint = fingerprint_key(handshake.pk);
       client.wires.push(wire);
-      //console.log("peer\t", wire.fingerprint);
       cb("peer", wire);
       debug("wires:", client.wires.length);
     }
@@ -124,7 +122,7 @@ function attach_bittorrent_extension_protocol(client, wire, addr, cb) {
   return t;
 }
 
-function attach_hash_listener(client, name, cb) {
+function listen(client, name, cb) {
   var content = new Buffer(name);
   content.name = name;
   
