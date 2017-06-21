@@ -90,9 +90,11 @@ function process_received_packet(client, packet, wire) {
 }
 
 function send(client, message, cb) {
-  var got = process_received_packet(client, make_packet(message, client.keys));
-  if (got) {
-    cb.apply(null, got);
+  if (client.torrent) {
+    var got = process_received_packet(client, make_packet(message, client.keys));
+    if (got) {
+      cb.apply(null, got);
+    }
   }
 }
 
@@ -123,11 +125,16 @@ function attach_bittorrent_extension_protocol(client, wire, addr, cb) {
 }
 
 function listen(client, name, cb) {
+  if (client.torrent) {
+    disconnect(client);
+  }
+  
   var content = new Buffer(name);
   content.name = name;
   
   client.client.on('torrent', function(torrent) { 
     cb("hash", torrent.infoHash);
+    client.torrent = torrent;
   });
   
   var torrent = client.client.seed(content, function (torrent) {
@@ -154,6 +161,13 @@ function listen(client, name, cb) {
       }
     });
   });
+}
+
+function disconnect(client) {
+  if (client.torrent) {
+    client.client.remove(client.torrent);
+    client.torrent = null;
+  }
 }
 
 // manage stdin interface in CLI mode
@@ -184,6 +198,9 @@ function connect(room, cb) {
     "client": c,
     "send": function(msg) {
       send(c, msg, cb);
+    },
+    "disconnect": function() {
+      disconnect(c);
     }
   };
 }

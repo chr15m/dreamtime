@@ -25,8 +25,10 @@ You can `require` dreamtime as a node module:
 	console.log(c.client.fingerprint);
 	
 	// wait 5 seconds & send a message to the room
+	// and then disconnect
 	setTimeout(function() {
 	  c.send("my first test message");
+	  c.disconnect();
 	}, 5000);
 
 ### Implementation
