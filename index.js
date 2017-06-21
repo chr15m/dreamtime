@@ -176,8 +176,21 @@ function attach_readline_interface(cb) {
   });
 }
 
-if (typeof require != 'undefined' && require.main==module) {
+// node module interface
+function connect(room, cb) {
+  var c = make_client();
+  listen(c, room, cb);
+  return {
+    "client": c,
+    "send": function(msg) {
+      send(c, msg, cb);
+    }
+  };
+}
+
+if (typeof(require)!= 'undefined' && require.main == module) {
   main(process.argv);
 } else {
   // node module defines
+  module.exports = connect;
 }

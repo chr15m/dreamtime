@@ -14,6 +14,21 @@ Example: aggregate the output from `ping` from different servers:
 
 ![Screencast of dreamtime aggregating script output](./screencast-2.gif)
 
+### Node module
+
+You can `require` dreamtime as a node module:
+
+	// connect to a room with a callback for received messages
+	c = require('dreamtime')("my-room-id", console.log);
+	
+	// our unique fingerprint
+	console.log(c.client.fingerprint);
+	
+	// wait 5 seconds & send a message to the room
+	setTimeout(function() {
+	  c.send("my first test message");
+	}, 5000);
+
 ### Implementation
 
 Dreamtime is built on top of [WebTorrent](https://webtorrent.io/) and uses the Bittorrent extension protocol for messaging.
