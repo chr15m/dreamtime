@@ -46,7 +46,7 @@ function make_client(opts) {
   // how many recent messages to detect repeats (rinngbuffer)
   struct.seen.length = 1024;
   // webtorrent client
-  struct.client = opts.client || new WebTorrent();
+  struct.torrent_client = opts.torrent_client || new WebTorrent();
   // nacl key pair
   struct.keys = opts.keys || nacl.sign.keyPair();
   // compute my pk and fingerprint
@@ -132,12 +132,12 @@ function listen(client, name, cb) {
   var content = new Buffer(name);
   content.name = name;
   
-  client.client.on('torrent', function(torrent) { 
+  client.torrent_client.on('torrent', function(torrent) { 
     cb("hash", torrent.infoHash);
     client.torrent = torrent;
   });
   
-  var torrent = client.client.seed(content, function (torrent) {
+  var torrent = client.torrent_client.seed(content, function (torrent) {
     cb("open");
   });
   
@@ -165,7 +165,7 @@ function listen(client, name, cb) {
 
 function disconnect(client) {
   if (client.torrent) {
-    client.client.remove(client.torrent);
+    client.torrent_client.remove(client.torrent);
     client.torrent = null;
   }
 }
@@ -191,8 +191,12 @@ function attach_readline_interface(cb) {
 }
 
 // node module interface
-function connect(room, cb) {
-  var c = make_client();
+function connect(room, opts, cb) {
+  if (typeof(opts) == "function") {
+    cb = opts;
+    opts = {};
+  }
+  var c = make_client(opts);
   listen(c, room, cb);
   return {
     "client": c,

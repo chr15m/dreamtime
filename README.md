@@ -19,7 +19,7 @@ Example: aggregate the output from `ping` from different servers:
 You can `require` dreamtime as a node module:
 
 	// connect to a room with a callback for received messages
-	c = require('dreamtime')("my-room-id", console.log);
+	room = require('dreamtime')("my-room-id", console.log);
 	
 	// our unique fingerprint
 	console.log(c.client.fingerprint);
@@ -27,9 +27,14 @@ You can `require` dreamtime as a node module:
 	// wait 5 seconds & send a message to the room
 	// and then disconnect
 	setTimeout(function() {
-	  c.send("my first test message");
-	  c.disconnect();
+	  room.send("my first test message");
+	  room.disconnect();
 	}, 5000);
+
+You can also re-use an existing webtorrent client:
+
+	var dreamtime = require("dreamtime");
+	room = dreamtime("my-room-id", {"torrent_client": wt}, console.log);
 
 ### Implementation
 
