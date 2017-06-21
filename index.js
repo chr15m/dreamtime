@@ -34,7 +34,7 @@ function post_to_stdout() {
 
 // client datastructure
 
-function make_client(name, opts) {
+function make_client(opts) {
   var opts = opts || {};
   var struct = {
     // peer connections
