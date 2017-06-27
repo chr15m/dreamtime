@@ -40,6 +40,17 @@ You can also re-use an existing webtorrent client:
 
 Dreamtime is built on top of [WebTorrent](https://webtorrent.io/) and uses the Bittorrent extension protocol for messaging.
 
+Discovery is achieved by seeding a torrent with the following `info` field.
+
+Contents are bencoded and SHA1'ed to make the infoHash as is standard.
+
+	{"length": 1,
+	 "name: YOUR-ROOM-NAME,
+	 "piece length": 16384,
+	 "pieces": 0x5b a9 3c 9d b0 cf f9 3f 52 b5 21 d7 42 0e 43 f6 ed a2 78 4f }
+
+The content of the torrent is a single character `\0` and so the `pieces` field contains `sha1("\0")`.
+
 ### Security note
 
 Channels are completely public. Anybody can join or eavesdrop. Don't share secrets over them.

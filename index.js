@@ -129,7 +129,7 @@ function listen(client, name, cb) {
     disconnect(client);
   }
   
-  var content = new Buffer(name);
+  var content = new Buffer("\0");
   content.name = name;
   
   client.torrent_client.on('torrent', function(torrent) { 
