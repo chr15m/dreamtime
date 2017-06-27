@@ -6,7 +6,7 @@
     "readline": "^1.3.0",
     "ripemd160": "^2.0.1",
     "tweetnacl": "^1.0.0",
-    "webtorrent": "^0.81.0"
+    "webtorrent": "^0.81.2"
   },
   "bin": "./index.js"
 }
