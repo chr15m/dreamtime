@@ -11,7 +11,7 @@ var debug = require('debug')('dreamtime');
 // CLI main function
 
 function main(args) {
-  var name = args.pop();
+  var name = args.name;
   var client = make_client();
   console.log("me\t", client.fingerprint);
   // handle data from peers to stdout
@@ -209,8 +209,20 @@ function connect(room, opts, cb) {
   };
 }
 
+// generate a usage message
+function usage(argv) {
+  return "Usage: " + argv[1] + " ROOM-NAME [-k SIGNING-KEY] [-s SECRET-KEY]\n\n" +
+         "\tROOM-NAME is any string that you can use for nodes to find eachother.";
+}
+
 if (typeof(require)!= 'undefined' && require.main == module) {
-  main(process.argv);
+  var argv = require('minimist')(process.argv.slice(2));
+  if (argv._.length > 0) {
+    argv.name = argv._[0];
+    main(argv);
+  } else {
+    console.log(usage(process.argv));
+  }
 } else {
   // node module defines
   module.exports = connect;
