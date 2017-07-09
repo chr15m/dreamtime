@@ -14,6 +14,8 @@ Example: aggregate the output from `ping` from different servers:
 
 ![Screencast of dreamtime aggregating script output](./screencast-2.gif)
 
+For more options & help run `dreamtime` with no arguments.
+
 ### Node module
 
 You can `require` dreamtime as a node module:

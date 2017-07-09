@@ -8,11 +8,14 @@ var nacl = require('tweetnacl');
 var ripe = require('ripemd160');
 var debug = require('debug')('dreamtime');
 
+// check if a string is probably a 32 byte hex representation
+var seedregex = /\b[0-9A-F]{64}\b/gi;
+
 // CLI main function
 
 function main(args) {
   var name = args.name;
-  var client = make_client();
+  var client = make_client(args);
   console.log("me\t", client.fingerprint);
   // handle data from peers to stdout
   listen(client, name, post_to_stdout);
@@ -209,16 +212,39 @@ function connect(room, opts, cb) {
   };
 }
 
+// extract nacl keypair from the argument
+function extractKeys(k) {
+  var fromSeed = nacl.sign.keyPair.fromSeed;
+  if (seedregex.exec(k)) {
+    return fromSeed(Buffer(k, "hex"))
+  } else {
+    var fs = require('fs');
+    if (fs.existsSync(k)) {
+      var seed = seedregex.exec(fs.readFileSync(k).toString());
+      if (seed) {
+        return fromSeed(Buffer(seed[0], "hex"));
+      }
+    } else if (k) {
+      console.error("Seed file does not exist:", k);
+    }
+  }
+}
+
 // generate a usage message
 function usage(argv) {
-  return "Usage: " + argv[1] + " ROOM-NAME [-k SIGNING-KEY] [-s SECRET-KEY]\n\n" +
-         "\tROOM-NAME is any string that you can use for nodes to find eachother.";
+  return "Usage: " + argv[1] + " ROOM-NAME [-k SIGNING-KEY-SEED]\n\n" +
+         "\tROOM-NAME is any string that you can use for nodes to find eachother.\n\n" +
+         "\tSIGNING-KEY-SEED is an optional seed to generate ed25519 keys used to sign all messages.\n" +
+         "\tIt should be either a 32 byte hex string, or a file containing such a hex string.\n" +
+         "\tE.g. `head -c32 /dev/urandom | sha256sum | cut -f1 -d' '`\n" +
+         "\tA random key is used by default.\n\n";
 }
 
 if (typeof(require)!= 'undefined' && require.main == module) {
   var argv = require('minimist')(process.argv.slice(2));
   if (argv._.length > 0) {
     argv.name = argv._[0];
+    argv.keys = extractKeys(argv.k);
     main(argv);
   } else {
     console.log(usage(process.argv));
